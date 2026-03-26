@@ -1191,7 +1191,7 @@ async def frontend_assets(full_path: str):
 
 if __name__ == "__main__":
     uvicorn.run(
-        "server:app_socketio",
+        app_socketio,
         host=BACKEND_HOST,
         port=BACKEND_PORT,
         reload=False,

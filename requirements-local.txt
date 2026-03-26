@@ -1,0 +1,17 @@
+-r requirements.txt
+
+# Local desktop audio/video
+opencv-python
+pyaudio
+mediapipe
+mss
+pyautogui
+
+# Local browser automation and document rendering
+playwright
+
+# Local CAD / prototyping
+build123d
+
+# Local network / device integrations
+python-kasa

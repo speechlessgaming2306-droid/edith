@@ -15,10 +15,6 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
-import cv2
-import pyaudio
-import PIL.Image
-import mss
 import argparse
 import difflib
 import math
@@ -30,6 +26,26 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from websockets.asyncio.client import connect as ws_connect
 
+try:
+    import cv2
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    cv2 = None
+
+try:
+    import pyaudio
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    pyaudio = None
+
+try:
+    import PIL.Image
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    PIL = None
+
+try:
+    import mss
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    mss = None
+
 from google import genai
 from google.genai import types
 
@@ -39,11 +55,14 @@ if sys.version_info < (3, 11, 0):
     asyncio.ExceptionGroup = exceptiongroup.ExceptionGroup
 
 from tools import tools_list
-from document_agent import DocumentAgent
+try:
+    from document_agent import DocumentAgent
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    DocumentAgent = None
 from kapture_client import KaptureClient
 from stark_controller import StarkController
 
-FORMAT = pyaudio.paInt16
+FORMAT = pyaudio.paInt16 if pyaudio else None
 CHANNELS = 1
 SEND_SAMPLE_RATE = 16000
 RECEIVE_SAMPLE_RATE = 24000
@@ -676,13 +695,19 @@ config = types.LiveConnectConfig(
     )
 )
 
-pya = pyaudio.PyAudio()
+if pyaudio:
+    pya = pyaudio.PyAudio()
+else:  # pragma: no cover - hosted deployments without PortAudio
+    pya = None
 
-from web_agent import WebAgent
+try:
+    from web_agent import WebAgent
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    WebAgent = None
 from spotify_agent import SpotifyAgent
 
 class AudioLoop:
-    def __init__(self, video_mode=DEFAULT_MODE, on_audio_data=None, on_video_frame=None, on_web_data=None, on_transcription=None, on_tool_confirmation=None, on_project_update=None, on_error=None, on_camera_request=None, on_shutdown_request=None, on_image_generation_request=None, on_device_switch_request=None, get_device_inventory=None, input_device_index=None, input_device_name=None, output_device_index=None, output_device_name=None, capture_mic=True, spotify_agent: SpotifyAgent | None = None, companion_bridge=None):
+    def __init__(self, video_mode=DEFAULT_MODE, on_audio_data=None, on_video_frame=None, on_web_data=None, on_transcription=None, on_tool_confirmation=None, on_project_update=None, on_error=None, on_camera_request=None, on_shutdown_request=None, on_image_generation_request=None, on_device_switch_request=None, get_device_inventory=None, input_device_index=None, input_device_name=None, output_device_index=None, output_device_name=None, capture_mic=True, enable_audio_output=True, spotify_agent: SpotifyAgent | None = None, companion_bridge=None):
         self.video_mode = video_mode
         self.on_audio_data = on_audio_data
         self.on_video_frame = on_video_frame
@@ -701,9 +726,11 @@ class AudioLoop:
         self.output_device_index = output_device_index
         self.output_device_name = output_device_name
         self.capture_mic = capture_mic
+        self.enable_audio_output = enable_audio_output
         self.spotify_agent = spotify_agent
         self.companion_bridge = companion_bridge
-        self.document_agent = DocumentAgent(project_root := os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.document_agent = DocumentAgent(project_root) if DocumentAgent else None
         self.kapture = KaptureClient()
         self.stark_controller = StarkController(project_root)
 
@@ -723,7 +750,7 @@ class AudioLoop:
 
         self.session = None
         
-        self.web_agent = WebAgent()
+        self.web_agent = WebAgent() if WebAgent else None
         self.send_text_task = None
         self.stop_event = asyncio.Event()
         
@@ -1375,6 +1402,9 @@ class AudioLoop:
                 self._deepgram_last_interim = ""
 
     async def listen_audio(self):
+        if not pyaudio or not pya or FORMAT is None:
+            print("[ADA] [WARN] PyAudio is unavailable on this deployment; microphone capture is disabled.")
+            return
         mic_info = pya.get_default_input_device_info()
 
         # Resolve Input Device by Name if provided
@@ -3034,7 +3064,8 @@ class AudioLoop:
                 async for response in turn:
                     # 1. Handle Audio Data
                     if data := response.data:
-                        self.audio_in_queue.put_nowait(data)
+                        if self.enable_audio_output and self.audio_in_queue is not None:
+                            self.audio_in_queue.put_nowait(data)
                         # NOTE: 'continue' removed here to allow processing transcription/tools in same packet
 
                     # 2. Handle Transcription (User & Model)
@@ -3746,6 +3777,9 @@ class AudioLoop:
             raise e
 
     async def play_audio(self):
+        if not pyaudio or not pya or FORMAT is None:
+            print("[ADA] [WARN] PyAudio is unavailable on this deployment; audio playback is disabled.")
+            return
         resolved_output_device_index = self.output_device_index
         if resolved_output_device_index is None and self.output_device_name:
             try:
@@ -3789,6 +3823,8 @@ class AudioLoop:
             await asyncio.to_thread(stream.write, bytestream)
 
     async def get_frames(self):
+        if cv2 is None or PIL is None:
+            raise RuntimeError("OpenCV/Pillow are unavailable on this deployment, so direct camera capture is disabled.")
         cap = await asyncio.to_thread(cv2.VideoCapture, 0, cv2.CAP_AVFOUNDATION)
         while True:
             if self.paused:
@@ -3803,6 +3839,8 @@ class AudioLoop:
         cap.release()
 
     def _get_frame(self, cap):
+        if cv2 is None or PIL is None:
+            return None
         ret, frame = cap.read()
         if not ret:
             return None
@@ -3853,7 +3891,8 @@ class AudioLoop:
                         tg.create_task(self.get_screen())
 
                     tg.create_task(self.receive_audio())
-                    tg.create_task(self.play_audio())
+                    if self.enable_audio_output:
+                        tg.create_task(self.play_audio())
 
                     # Handle Startup vs Reconnect Logic
                     if not is_reconnect:
@@ -4030,6 +4069,8 @@ class AudioLoop:
                 self._deepgram_last_interim = ""
 
 def get_input_devices():
+    if not pyaudio:
+        return []
     p = pyaudio.PyAudio()
     info = p.get_host_api_info_by_index(0)
     numdevices = info.get('deviceCount')
@@ -4041,6 +4082,8 @@ def get_input_devices():
     return devices
 
 def get_output_devices():
+    if not pyaudio:
+        return []
     p = pyaudio.PyAudio()
     info = p.get_host_api_info_by_index(0)
     numdevices = info.get('deviceCount')

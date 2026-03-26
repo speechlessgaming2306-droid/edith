@@ -15,6 +15,7 @@ if sys.platform == 'win32':
 import socketio
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -30,11 +31,13 @@ app_socketio = socketio.ASGIApp(sio, app)
 audio_loop = None
 loop_task = None
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST_DIR = WORKSPACE_ROOT / "dist"
+SETTINGS_FILE = str(BACKEND_DIR / "settings.json")
 spotify_agent = SpotifyAgent(str(WORKSPACE_ROOT))
 face_authenticator = FaceAuthenticator()
 companion_bridge = CompanionBridge(sio, auth_token=os.getenv("EDITH_COMPANION_TOKEN", ""))
 DEVICE_INVENTORY = {"microphone": [], "speaker": [], "webcam": []}
-SETTINGS_FILE = "settings.json"
 DEFAULT_SETTINGS = {
     "profile": {
         "location_label": "",
@@ -122,8 +125,52 @@ DEFAULT_SETTINGS = {
 }
 SETTINGS = json.loads(json.dumps(DEFAULT_SETTINGS))
 ACCESS_CODE = os.getenv("HARVEY_ACCESS_CODE", "2306")
-BACKEND_HOST = os.getenv("EDITH_BACKEND_HOST", "127.0.0.1")
-BACKEND_PORT = int(os.getenv("EDITH_BACKEND_PORT", "8000"))
+BACKEND_HOST = os.getenv("EDITH_BACKEND_HOST", "0.0.0.0")
+BACKEND_PORT = int(os.getenv("PORT") or os.getenv("EDITH_BACKEND_PORT") or "8000")
+
+
+def _env_settings_overrides():
+    token_map = {
+        "mem0_api_key": "MEM0_API_KEY",
+        "mem0_user_id": "MEM0_USER_ID",
+        "mem0_app_id": "MEM0_APP_ID",
+        "mem0_org_id": "MEM0_ORG_ID",
+        "mem0_project_id": "MEM0_PROJECT_ID",
+        "pollinations_api_key": "POLLINATIONS_API_KEY",
+        "clicksend_username": "CLICKSEND_USERNAME",
+        "clicksend_api_key": "CLICKSEND_API_KEY",
+        "clicksend_sms_from": "CLICKSEND_SMS_FROM",
+        "clicksend_from_email": "CLICKSEND_FROM_EMAIL",
+        "nexg_sms_url": "NEXG_SMS_URL",
+        "nexg_sms_username": "NEXG_SMS_USERNAME",
+        "nexg_sms_password": "NEXG_SMS_PASSWORD",
+        "nexg_sms_from": "NEXG_SMS_FROM",
+        "nexg_dlt_content_template_id": "NEXG_DLT_CONTENT_TEMPLATE_ID",
+        "nexg_dlt_principal_entity_id": "NEXG_DLT_PRINCIPAL_ENTITY_ID",
+        "nexg_dlt_telemarketer_id": "NEXG_DLT_TELEMARKETER_ID",
+    }
+    profile_map = {
+        "location_label": "EDITH_LOCATION_LABEL",
+        "city": "EDITH_CITY",
+        "region": "EDITH_REGION",
+        "country": "EDITH_COUNTRY",
+        "timezone": "EDITH_TIMEZONE",
+        "voice_mode": "EDITH_VOICE_MODE",
+    }
+
+    service_tokens = {}
+    for key, env_name in token_map.items():
+        value = os.getenv(env_name)
+        if value is not None and str(value).strip():
+            service_tokens[key] = str(value).strip()
+
+    profile = {}
+    for key, env_name in profile_map.items():
+        value = os.getenv(env_name)
+        if value is not None and str(value).strip():
+            profile[key] = str(value).strip()
+
+    return {"service_tokens": service_tokens, "profile": profile}
 
 
 def force_auto_allow_all_tools():
@@ -134,6 +181,9 @@ def force_auto_allow_all_tools():
 
 def sanitized_settings():
     payload = json.loads(json.dumps(SETTINGS))
+    overrides = _env_settings_overrides()
+    payload["service_tokens"].update(overrides["service_tokens"])
+    payload["profile"].update(overrides["profile"])
     if "service_tokens" in payload:
         tokens = payload["service_tokens"]
         payload["service_tokens"] = {
@@ -164,6 +214,10 @@ def sanitized_settings():
 def load_settings():
     global SETTINGS
     if not os.path.exists(SETTINGS_FILE):
+        SETTINGS = json.loads(json.dumps(DEFAULT_SETTINGS))
+        overrides = _env_settings_overrides()
+        SETTINGS["service_tokens"].update(overrides["service_tokens"])
+        SETTINGS["profile"].update(overrides["profile"])
         force_auto_allow_all_tools()
         return
     try:
@@ -183,9 +237,16 @@ def load_settings():
                 SETTINGS["profile"].update(value)
             else:
                 SETTINGS[key] = value
+        overrides = _env_settings_overrides()
+        SETTINGS["service_tokens"].update(overrides["service_tokens"])
+        SETTINGS["profile"].update(overrides["profile"])
         force_auto_allow_all_tools()
     except Exception as e:
         print(f"Error loading settings: {e}")
+        SETTINGS = json.loads(json.dumps(DEFAULT_SETTINGS))
+        overrides = _env_settings_overrides()
+        SETTINGS["service_tokens"].update(overrides["service_tokens"])
+        SETTINGS["profile"].update(overrides["profile"])
         force_auto_allow_all_tools()
 
 
@@ -226,12 +287,30 @@ async def status():
     }
 
 
+@app.get("/health")
+async def health():
+    return await status()
+
+
 @app.get("/companions")
 async def companions():
     return {
         "companions_connected": companion_bridge.has_available_companion(),
         "companions": companion_bridge.list_companions(),
     }
+
+
+@app.get("/", include_in_schema=False)
+async def frontend_index():
+    index_path = FRONTEND_DIST_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return JSONResponse({
+        "status": "running",
+        "service": "Edith Backend",
+        "frontend_built": False,
+        "message": "Frontend build not found. Run `npm run build:web` before deploying.",
+    })
 
 
 async def emit_communication_notification(payload):
@@ -365,8 +444,10 @@ async def companion_action_result(sid, data):
 
 
 def _decode_base64_frame(image_b64: str):
-    import cv2
+    if getattr(face_authenticator, "is_available", lambda: False)() is False:
+        return None
 
+    import cv2
     raw = base64.b64decode(image_b64)
     arr = np.frombuffer(raw, dtype=np.uint8)
     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
@@ -404,7 +485,7 @@ async def verify_access_code(sid, data):
 @sio.event
 async def get_face_auth_status(sid):
     await sio.emit('face_auth_status', {
-        'available': True,
+        'available': bool(face_authenticator.is_available()),
         'enrolled': face_authenticator.has_reference(),
     }, room=sid)
 
@@ -464,6 +545,14 @@ async def start_audio(sid, data=None):
     capture_mic = data.get('capture_mic', True) if data else True
     access_code = str((data or {}).get('access_code', '')).strip()
     client_context = (data or {}).get('client_context') or {}
+    runtime = str(client_context.get('runtime') or '').lower()
+    hostname = str(client_context.get('hostname') or '').lower()
+    is_local_browser = runtime == 'browser' and hostname in {'localhost', '127.0.0.1'}
+    enable_server_audio = (
+        runtime != 'browser'
+        or is_local_browser
+        or str(os.getenv("EDITH_ENABLE_REMOTE_SERVER_AUDIO", "")).strip().lower() in {"1", "true", "yes", "on"}
+    )
 
     if access_code != ACCESS_CODE:
         await sio.emit('error', {'msg': 'Access code rejected.'}, room=sid)
@@ -522,6 +611,7 @@ async def start_audio(sid, data=None):
             input_device_name=device_name,
             output_device_name=output_device_name,
             capture_mic=capture_mic,
+            enable_audio_output=enable_server_audio,
             spotify_agent=spotify_agent,
             companion_bridge=companion_bridge,
         )
@@ -532,9 +622,7 @@ async def start_audio(sid, data=None):
             audio_loop.set_paused(True)
 
         startup_message = ada.INITIAL_BOOT_PROMPT
-        runtime = str(client_context.get('runtime') or '').lower()
         platform = str(client_context.get('platform') or '')
-        hostname = str(client_context.get('hostname') or '').lower()
         origin = str(client_context.get('origin') or '')
         if runtime == 'browser':
             startup_message += (
@@ -550,6 +638,11 @@ async def start_audio(sid, data=None):
                 )
             elif origin:
                 startup_message += f" Origin: {origin}."
+            if not enable_server_audio:
+                startup_message += (
+                    " This is a hosted browser deployment, so server-side microphone and speaker capture are disabled."
+                    " Treat this session as text-first unless a separate local companion or browser-media transport is available."
+                )
 
         loop_task = asyncio.create_task(audio_loop.run(start_message=startup_message))
 
@@ -563,6 +656,8 @@ async def start_audio(sid, data=None):
 
         loop_task.add_done_callback(handle_loop_exit)
         await sio.emit('status', {'msg': 'Edith Started'})
+        if runtime == 'browser' and not enable_server_audio:
+            await sio.emit('status', {'msg': 'Hosted mode active: text chat and browser camera uploads work; server-side live audio is disabled.'}, room=sid)
     except Exception as e:
         print(f"CRITICAL ERROR STARTING EDITH: {e}")
         await sio.emit('error', {'msg': f"Failed to start: {str(e)}"})
@@ -1075,6 +1170,23 @@ async def spotify_search(sid, data):
         await sio.emit('spotify_search_results', results, room=sid)
     except Exception as e:
         await sio.emit('error', {'msg': f"Spotify search failed: {str(e)}"}, room=sid)
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def frontend_assets(full_path: str):
+    candidate = (FRONTEND_DIST_DIR / full_path).resolve()
+    try:
+        candidate.relative_to(FRONTEND_DIST_DIR.resolve())
+    except Exception:
+        return JSONResponse({"error": "Invalid path."}, status_code=400)
+
+    if candidate.is_file():
+        return FileResponse(candidate)
+
+    index_path = FRONTEND_DIST_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return JSONResponse({"error": "Not found."}, status_code=404)
 
 
 if __name__ == "__main__":

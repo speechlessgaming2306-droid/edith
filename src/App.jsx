@@ -10,12 +10,18 @@ import SettingsWindow from './components/SettingsWindow';
 import ConversationHistoryPanel from './components/ConversationHistoryPanel';
 import CommunicationsPanel from './components/CommunicationsPanel';
 
+const isBrowserRuntime = typeof window !== 'undefined';
+const isElectronRuntime = isBrowserRuntime && typeof window.require === 'function';
 const backendHost = typeof window !== 'undefined' && window.location?.hostname
     ? window.location.hostname
     : 'localhost';
-const backendUrl = import.meta.env.VITE_BACKEND_URL || `http://${backendHost}:8000`;
-const socket = io(backendUrl);
-const isElectronRuntime = typeof window !== 'undefined' && typeof window.require === 'function';
+const isLocalBrowserSession = isBrowserRuntime && ['localhost', '127.0.0.1'].includes(window.location?.hostname || '');
+const backendUrl = import.meta.env.VITE_BACKEND_URL || (
+    isElectronRuntime
+        ? `http://${backendHost}:8000`
+        : (isLocalBrowserSession ? `http://${backendHost}:8000` : (isBrowserRuntime ? window.location.origin : 'http://localhost:8000'))
+);
+const socket = io(backendUrl, { path: '/socket.io' });
 const electronApi = isElectronRuntime ? window.require('electron') : null;
 const ipcRenderer = electronApi?.ipcRenderer || { send: () => {} };
 const shell = electronApi?.shell || {
@@ -125,11 +131,12 @@ function App() {
             hostname: window.location.hostname || '',
             origin: window.location.origin || '',
         };
+        const captureMicOnBackend = isElectronRuntime || isLocalBrowserSession;
         socket.emit('start_audio', {
             device_name: deviceName,
             output_device_name: outputDeviceName,
             muted,
-            capture_mic: true,
+            capture_mic: captureMicOnBackend,
             access_code: validatedAccessCode,
             client_context: runtimeContext,
         });
@@ -864,7 +871,11 @@ function App() {
     }, [accessGranted]);
 
     useEffect(() => {
-        if (!socketConnected || !accessGranted || !validatedAccessCode || !isConnected || micDevices.length === 0 || hasAutoConnectedRef.current) {
+        const hostedBrowserMode = !isElectronRuntime && !isLocalBrowserSession;
+        if (!socketConnected || !accessGranted || !validatedAccessCode || !isConnected || hasAutoConnectedRef.current) {
+            return;
+        }
+        if (!hostedBrowserMode && micDevices.length === 0) {
             return;
         }
 

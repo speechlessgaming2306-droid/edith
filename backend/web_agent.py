@@ -8,9 +8,13 @@ import sys
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 from urllib.request import Request, urlopen
 from dotenv import load_dotenv
-from playwright.async_api import async_playwright
 from google import genai
 from google.genai import types
+
+try:
+    from playwright.async_api import async_playwright
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    async_playwright = None
 
 # 1. Load API Key
 load_dotenv()
@@ -58,6 +62,8 @@ class WebAgent:
         self.page = None
 
     async def ensure_browser(self):
+        if async_playwright is None:
+            raise RuntimeError("Playwright is not installed, so the browser agent is unavailable on this deployment.")
         if self.browser and self.context and self.page:
             return
 

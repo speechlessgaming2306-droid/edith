@@ -10,6 +10,69 @@
 
 Edith is a sophisticated AI assistant designed for multimodal interaction. It combines Google's Gemini 2.5 Native Audio with computer vision, gesture control, and 3D CAD generation in a Electron desktop application.
 
+## Railway Deployment
+
+Edith can now be deployed to [Railway](https://railway.app/) as a single web service.
+
+### What changed for hosted deployment
+
+- The FastAPI + Socket.IO backend now binds to Railway's `PORT` automatically.
+- The backend serves the built React frontend from `dist/`.
+- Browser deployments connect to the backend over the same origin instead of assuming `localhost:8000`.
+- Hosted browser sessions start in a text-first mode by default, so Railway does not need a local microphone or speaker device.
+- `requirements.txt` is now cloud-safe for Railway, and local hardware/desktop dependencies were moved to `requirements-local.txt`.
+
+### Files added for deployment
+
+- [`Dockerfile`](/Users/ritu/Documents/GitHub/harv%202/harv/Dockerfile)
+- [`.dockerignore`](/Users/ritu/Documents/GitHub/harv%202/harv/.dockerignore)
+- [`backend/settings.example.json`](/Users/ritu/Documents/GitHub/harv%202/harv/backend/settings.example.json)
+- [`requirements-local.txt`](/Users/ritu/Documents/GitHub/harv%202/harv/requirements-local.txt)
+
+### Recommended Railway environment variables
+
+Required:
+
+- `GEMINI_API_KEY`
+- `HARVEY_ACCESS_CODE`
+
+Recommended:
+
+- `MEM0_API_KEY`
+- `MEM0_USER_ID`
+- `MEM0_APP_ID=edith`
+- `EDITH_COMPANION_TOKEN`
+- `SPOTIFY_CLIENT_ID`
+- `SPOTIFY_CLIENT_SECRET`
+- `SPOTIFY_REDIRECT_URI`
+- `POLLINATIONS_API_KEY`
+
+Optional profile variables:
+
+- `EDITH_LOCATION_LABEL`
+- `EDITH_CITY`
+- `EDITH_REGION`
+- `EDITH_COUNTRY`
+- `EDITH_TIMEZONE`
+- `EDITH_VOICE_MODE`
+
+### Important hosted limitations
+
+- Live server-side microphone capture is disabled by default for remote browser sessions.
+- Server-side audio playback is disabled by default for remote browser sessions.
+- Text chat, Mem0 memory, browser camera uploads, document generation, and backend tools still work.
+- Local-machine actions such as opening Mac apps, clipboard access, printers, and other desktop-native actions should be handled through the Edith companion on your own machine, not directly by the Railway container.
+- Desktop-only dependencies like `pyaudio`, `opencv-python`, `mediapipe`, `mss`, `pyautogui`, `playwright`, and `build123d` are intentionally excluded from Railway installs.
+
+If you intentionally want the Railway container to try server-side audio playback, set:
+
+- `EDITH_ENABLE_REMOTE_SERVER_AUDIO=true`
+
+### Dependency split
+
+- Use `pip install -r requirements.txt` on Railway / cloud servers.
+- Use `pip install -r requirements-local.txt` on your own machine for the full desktop Edith stack.
+
 ---
 
 ## 🌟 Capabilities at a Glance

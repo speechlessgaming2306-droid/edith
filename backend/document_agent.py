@@ -11,7 +11,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from playwright.sync_api import sync_playwright
+
+try:
+    from playwright.sync_api import sync_playwright
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    sync_playwright = None
 
 
 load_dotenv()
@@ -312,6 +316,8 @@ class DocumentAgent:
         return "".join(parts)
 
     def _build_pdf_with_playwright(self, pdf_path: Path, html_text: str) -> None:
+        if sync_playwright is None:
+            raise RuntimeError("Playwright is not installed, so PDF generation is unavailable on this deployment.")
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             try:

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && env -u ELECTRON_RUN_AS_NODE electron .\"",
     "build": "vite build",
+    "build:web": "cross-env VITE_BUILD_TARGET=web vite build",
+    "start:web": "python3 backend/server.py",
     "start": "env -u ELECTRON_RUN_AS_NODE electron ."
   },
   "keywords": [],

@@ -4,11 +4,21 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import cv2
-import mediapipe as mp
 import numpy as np
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
+
+try:
+    import cv2
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    cv2 = None
+
+try:
+    import mediapipe as mp
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+except Exception:  # pragma: no cover - optional in cloud/server deployments
+    mp = None
+    python = None
+    vision = None
 
 
 class FaceAuthenticator:
@@ -23,18 +33,26 @@ class FaceAuthenticator:
         self._reference_landmarks = None
         self._running = False
 
-        self._ensure_model()
-        if os.path.exists(self.reference_image_path):
+        if self.is_available():
+            self._ensure_model()
+        if self.is_available() and os.path.exists(self.reference_image_path):
             try:
                 self._load_reference()
             except Exception:
                 self._reference_landmarks = None
 
+    def is_available(self):
+        return cv2 is not None and mp is not None and python is not None and vision is not None
+
     def _ensure_model(self):
+        if not self.is_available():
+            raise RuntimeError("Face authentication dependencies are not installed.")
         if not os.path.exists(self.MODEL_PATH):
             raise FileNotFoundError(f"Face Landmarker model not found at {self.MODEL_PATH}")
 
     def _init_landmarker(self):
+        if not self.is_available():
+            raise RuntimeError("Face authentication dependencies are not installed.")
         if self._landmarker is not None:
             return
 
@@ -48,6 +66,8 @@ class FaceAuthenticator:
         self._landmarker = vision.FaceLandmarker.create_from_options(options)
 
     def _extract_landmarks(self, image_bgr):
+        if not self.is_available():
+            return None
         if image_bgr is None or image_bgr.size == 0:
             return None
 
@@ -75,6 +95,8 @@ class FaceAuthenticator:
         return distance <= threshold
 
     def _load_reference(self):
+        if not self.is_available():
+            raise RuntimeError("Face authentication dependencies are not installed.")
         image = cv2.imread(self.reference_image_path)
         if image is None:
             raise FileNotFoundError(f"Reference image not found at {self.reference_image_path}")
@@ -87,9 +109,13 @@ class FaceAuthenticator:
         return landmarks
 
     def has_reference(self):
+        if not self.is_available():
+            return False
         return self._reference_landmarks is not None or os.path.exists(self.reference_image_path)
 
     def save_reference_frame(self, frame_bgr):
+        if not self.is_available():
+            raise RuntimeError("Face authentication dependencies are not installed.")
         os.makedirs(os.path.dirname(self.reference_image_path), exist_ok=True)
         cv2.imwrite(self.reference_image_path, frame_bgr)
         self._reference_landmarks = None
@@ -97,6 +123,8 @@ class FaceAuthenticator:
         return True
 
     def authenticate_frame(self, frame_bgr, threshold=0.035):
+        if not self.is_available():
+            return False, "Face authentication is unavailable on this deployment."
         if self._reference_landmarks is None:
             if not os.path.exists(self.reference_image_path):
                 return False, "Face ID is not enrolled yet."
@@ -112,6 +140,10 @@ class FaceAuthenticator:
         return False, "Face does not match the enrolled reference."
 
     async def _run_cv_loop(self):
+        if not self.is_available():
+            if self.on_status_change:
+                await self.on_status_change(False)
+            return
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             if self.on_status_change:

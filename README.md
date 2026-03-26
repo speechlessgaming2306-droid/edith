@@ -1,4 +1,4 @@
-# A.D.A V2 - Advanced Design Assistant
+# Edith
 
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-blue?logo=python)
 ![React](https://img.shields.io/badge/React-18.2-61DAFB?logo=react)
@@ -6,9 +6,9 @@
 ![Gemini](https://img.shields.io/badge/Google%20Gemini-Native%20Audio-4285F4?logo=google)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-> **A.D.A** = **A**dvanced **D**esign **A**ssistant
+> Edith
 
-ADA V2 is a sophisticated AI assistant designed for multimodal interaction. It combines Google's Gemini 2.5 Native Audio with computer vision, gesture control, and 3D CAD generation in a Electron desktop application.
+Edith is a sophisticated AI assistant designed for multimodal interaction. It combines Google's Gemini 2.5 Native Audio with computer vision, gesture control, and 3D CAD generation in a Electron desktop application.
 
 ---
 
@@ -27,15 +27,20 @@ ADA V2 is a sophisticated AI assistant designed for multimodal interaction. It c
 
 ### 🖐️ Gesture Control Details
 
-ADA's "Minority Report" interface uses your webcam to detect hand gestures:
+Edith's "Minority Report" interface uses your webcam to detect hand gestures:
 
 | Gesture | Action |
 |---------|--------|
-| 🤏 **Pinch** | Confirm action / click |
-| ✋ **Open Palm** | Release the window |
-| ✊ **Close Fist** | "Select" and grab a UI window to drag it |
+| 🤏 **Double pinch** | System-wide click in Stark Mode |
+| ✊ **Closed fist hold** | Hold mouse down and drag |
+| ✋ **Open palm swipe up/down** | Mission Control / App Exposé |
+| ✌️ **Peace-sign swipe** | Switch browser tabs left/right |
 
-> **Tip**: Enable the video feed window to see the hand tracking overlay.
+Stark Mode runs through [`hand_gesture_test.py`](/Users/ritu/Documents/GitHub/harv%202/harv/hand_gesture_test.py) with MediaPipe Tasks, the bundled [`public/hand_landmarker.task`](/Users/ritu/Documents/GitHub/harv%202/harv/public/hand_landmarker.task) model, and `pyautogui` for full-desktop macOS cursor control.
+
+> **Tip**: Edith can toggle Stark Mode by voice: "activate stark mode", "enable stark mode", "disable it", "turn it off", or "stop it".
+>
+> **macOS requirement**: Grant Camera and Accessibility permissions to the Python interpreter or terminal running Edith, or cursor control will fail even if Stark Mode starts.
 
 ---
 
@@ -52,7 +57,7 @@ graph TB
     
     subgraph Backend ["Backend (Python 3.11 + FastAPI)"]
         SERVER[server.py<br/>Socket.IO Server]
-        ADA[ada.py<br/>Gemini Live API]
+        Edith[ada.py<br/>Gemini Live API]
         WEB[web_agent.py<br/>Playwright Browser]
         CAD[cad_agent.py<br/>CAD + build123d]
         PRINTER[printer_agent.py<br/>3D Printing + OrcaSlicer]
@@ -63,10 +68,10 @@ graph TB
     
     UI --> SOCKET_C
     SOCKET_C <--> SERVER
-    SERVER --> ADA
-    ADA --> WEB
-    ADA --> CAD
-    ADA --> KASA
+    SERVER --> Edith
+    Edith --> WEB
+    Edith --> CAD
+    Edith --> KASA
     SERVER --> AUTH
     SERVER --> PM
     SERVER --> PRINTER
@@ -83,10 +88,10 @@ graph TB
 
 ```bash
 # 1. Clone and enter
-git clone https://github.com/nazirlouis/ada_v2.git && cd ada_v2
+git clone https://github.com/nazirlouis/harv.git && cd harv
 
 # 2. Create Python environment (Python 3.11)
-conda create -n ada_v2 python=3.11 -y && conda activate ada_v2
+conda create -n harv python=3.11 -y && conda activate harv
 brew install portaudio  # macOS only (for PyAudio)
 pip install -r requirements.txt
 playwright install chromium
@@ -98,7 +103,7 @@ npm install
 echo "GEMINI_API_KEY=your_key_here" > .env
 
 # 5. Run!
-conda activate ada_v2 && npm run dev
+conda activate harv && npm run dev
 ```
 
 </details>
@@ -126,14 +131,14 @@ If you have never coded before, follow these steps first!
 1. Open your terminal (or Command Prompt on Windows).
 2. Type this command and hit Enter:
    ```bash
-   git clone https://github.com/nazirlouis/ada_v2.git
+   git clone https://github.com/nazirlouis/harv.git
    ```
-3. This creates a folder named `ada_v2`.
+3. This creates a folder named `harv`.
 
 **Step 5: Open in VS Code**
 1. Open VS Code.
 2. Go to **File > Open Folder**.
-3. Select the `ada_v2` folder you just downloaded.
+3. Select the `harv` folder you just downloaded.
 4. Open the internal terminal: Press `Ctrl + ~` (tilde) or go to **Terminal > New Terminal**.
 
 ---
@@ -156,8 +161,8 @@ brew install portaudio
 Create a single Python 3.11 environment:
 
 ```bash
-conda create -n ada_v2 python=3.11
-conda activate ada_v2
+conda create -n harv python=3.11
+conda activate harv
 
 # Install all dependencies
 pip install -r requirements.txt
@@ -178,11 +183,11 @@ npm install
 ```
 
 ### 4. 🔐 Face Authentication Setup
-To use the secure voice features, ADA needs to know what you look like.
+To use the secure voice features, Edith needs to know what you look like.
 
 1. Take a clear photo of your face (or use an existing one).
 2. Rename the file to `reference.jpg`.
-3. Drag and drop this file into the `ada_v2/backend` folder.
+3. Drag and drop this file into the `harv/backend` folder.
 4. (Optional) You can toggle this feature on/off in `settings.json` by changing `"face_auth_enabled": true/false`.
 
 ---
@@ -202,7 +207,7 @@ The system creates a `settings.json` file on first run. You can modify this to c
 ---
 
 ### 5. 🖨️ 3D Printer Setup
-ADA V2 can slice STL files and send them directly to your 3D printer.
+Edith can slice STL files and send them directly to your 3D printer.
 
 **Supported Hardware:**
 - **Klipper/Moonraker** (Creality K1, Voron, etc.)
@@ -210,26 +215,26 @@ ADA V2 can slice STL files and send them directly to your 3D printer.
 - **PrusaLink** (Experimental)
 
 **Step 1: Install Slicer**
-ADA uses **OrcaSlicer** (recommended) or PrusaSlicer to generate G-code.
+Edith uses **OrcaSlicer** (recommended) or PrusaSlicer to generate G-code.
 1. Download and install [OrcaSlicer](https://github.com/SoftFever/OrcaSlicer).
 2. Run it once to ensure profiles are created.
-3. ADA automatically detects the installation path.
+3. Edith automatically detects the installation path.
 
 **Step 2: Connect Printer**
 1. Ensure your printer and computer are on the **same Wi-Fi network**.
-2. Open the **Printer Window** in ADA (Cube icon).
-3. ADA automatically scans for printers using mDNS.
+2. Open the **Printer Window** in Edith (Cube icon).
+3. Edith automatically scans for printers using mDNS.
 4. **Manual Connection**: If your printer isn't found, use the "Add Printer" button and enter the IP address (e.g., `192.168.1.50`).
 
 ---
 
 ### 6. 🔑 Gemini API Key Setup
-ADA uses Google's Gemini API for voice and intelligence. You need a free API key.
+Edith uses Google's Gemini API for voice and intelligence. You need a free API key.
 
 1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
 2. Sign in with your Google account.
 3. Click **"Create API Key"** and copy the generated key.
-4. Create a file named `.env` in the `ada_v2` folder (same level as `README.md`).
+4. Create a file named `.env` in the `harv` folder (same level as `README.md`).
 5. Add this line to the file:
    ```
    GEMINI_API_KEY=your_api_key_here
@@ -240,14 +245,14 @@ ADA uses Google's Gemini API for voice and intelligence. You need a free API key
 
 ---
 
-## 🚀 Running ADA V2
+## 🚀 Running Edith
 
-You have two options to run the app. Ensure your `ada_v2` environment is active!
+You have two options to run the app. Ensure your `harv` environment is active!
 
 ### Option 1: The "Easy" Way (Single Terminal)
 The app is smart enough to start the backend for you.
-1. Open your terminal in the `ada_v2` folder.
-2. Activate your environment: `conda activate ada_v2`
+1. Open your terminal in the `harv` folder.
+2. Activate your environment: `conda activate harv`
 3. Run:
    ```bash
    npm run dev
@@ -259,7 +264,7 @@ Use this if you want to see the Python logs (recommended for debugging).
 
 **Terminal 1 (Backend):**
 ```bash
-conda activate ada_v2
+conda activate harv
 python backend/server.py
 ```
 
@@ -268,6 +273,43 @@ python backend/server.py
 # Environment doesn't matter here, but keep it simple
 npm run dev
 ```
+
+### Localhost Links
+
+- Frontend (Vite): http://localhost:5173
+- Backend status: http://127.0.0.1:8000/status
+- Backend companion status: http://127.0.0.1:8000/companions
+
+When you use `npm run dev`, Electron still opens the desktop shell, but the frontend dev server is hosted at `http://localhost:5173` underneath.
+
+---
+
+## Cloud Backend + Local Companion
+
+If you want Edith hosted in the cloud but still able to control a personal Mac, printer, clipboard, and local apps, run Edith in two parts:
+
+1. Deploy the backend and frontend to your server.
+2. Set `EDITH_REQUIRE_COMPANION=1` on the hosted backend so machine actions do not fall back to the cloud host.
+3. Set the same `EDITH_COMPANION_TOKEN` on the backend and on each trusted companion machine.
+4. Run the local companion on the target Mac:
+
+```bash
+cd harv
+./.venv/bin/python backend/edith_companion.py \
+  --server https://your-edith-server.example.com \
+  --token your-shared-companion-token \
+  --id primary-mac \
+  --name "Ritu Mac"
+```
+
+The hosted backend can then route local-machine actions through that companion. Current companion-routed actions include:
+
+- opening and closing Mac apps
+- reading and writing the clipboard
+- listing printers and printing files
+- opening files on the connected machine
+
+Use `GET /status` or `GET /companions` on the backend to confirm that a companion is connected.
 
 ---
 
@@ -300,9 +342,9 @@ npm run dev
 - **Note**: The agent will auto-scroll, click, and type. Do not interfere with the browser window while it runs.
 
 ### 🖨️ Printing & Slicing
-- **Auto-Discovery**: ADA automatically finds printers on your network.
+- **Auto-Discovery**: Edith automatically finds printers on your network.
 - **Slicing**: Click "Slice & Print" on any generated 3D model.
-- **Profiles**: ADA intelligently selects the correct OrcaSlicer profile based on your printer's name (e.g., "Creality K1").
+- **Profiles**: Edith intelligently selects the correct OrcaSlicer profile based on your printer's name (e.g., "Creality K1").
 
 ---
 
@@ -322,7 +364,7 @@ npm run dev
 **Symptoms**: Backend crashes on startup with "API key not found".
 
 **Solution**:
-1. Make sure your `.env` file is in the root `ada_v2` folder (not inside `backend/`).
+1. Make sure your `.env` file is in the root `harv` folder (not inside `backend/`).
 2. Verify the format is exactly: `GEMINI_API_KEY=your_key` (no quotes, no spaces).
 3. Restart the backend after editing the file.
 
@@ -345,7 +387,7 @@ This is a server-side issue from the Gemini API. Simply reconnect by clicking th
 ## 📂 Project Structure
 
 ```
-ada_v2/
+harv/
 ├── backend/                    # Python server & AI logic
 │   ├── ada.py                  # Gemini Live API integration
 │   ├── server.py               # FastAPI + Socket.IO server

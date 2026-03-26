@@ -4,11 +4,13 @@ python-socketio
 python-multipart
 # Google GenAI SDK (v1beta)
 google-genai
+mem0ai
 # Computer Vision & Audio
 opencv-python
 pyaudio
 pillow
 mss
+pyautogui
 # Browser Automation
 playwright
 # Smart Home

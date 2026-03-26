@@ -1,20 +1,36 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const electron = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const { existsSync, mkdirSync } = require('fs');
 
-// Use ANGLE D3D11 backend - more stable on Windows while keeping WebGL working
-// This fixes "GPU state invalid after WaitForGetOffsetInRange" error
-app.commandLine.appendSwitch('use-angle', 'd3d11');
-app.commandLine.appendSwitch('enable-features', 'Vulkan');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
+if (!electron || typeof electron === 'string') {
+    throw new Error(
+        'Electron main process did not initialize correctly. Start the app with the Electron binary, not plain node.'
+    );
+}
+
+const { app, BrowserWindow, ipcMain } = electron;
+
+// Prefer the safest cross-platform startup path over custom GPU tuning.
+app.disableHardwareAcceleration();
 
 let mainWindow;
 let pythonProcess;
+const appRoot = path.join(__dirname, '..');
+const cacheRoot = path.join(appRoot, '.cache');
+const backendHost = process.env.EDITH_BACKEND_HOST || '127.0.0.1';
+const backendPort = Number(process.env.EDITH_BACKEND_PORT || '8000');
+
+function ensureCacheDirs() {
+    mkdirSync(path.join(cacheRoot, 'matplotlib'), { recursive: true });
+    mkdirSync(path.join(cacheRoot, 'fontconfig'), { recursive: true });
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1920,
         height: 1080,
+        title: 'Edith',
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false, // For simple IPC/Socket.IO usage
@@ -65,11 +81,19 @@ function createWindow() {
 
 function startPythonBackend() {
     const scriptPath = path.join(__dirname, '../backend/server.py');
+    const venvPython = path.join(__dirname, '../.venv/bin/python3');
+    const pythonBin = process.env.PYTHON_BIN || (existsSync(venvPython) ? venvPython : 'python3');
     console.log(`Starting Python backend: ${scriptPath}`);
+    ensureCacheDirs();
 
-    // Assuming 'python' is in PATH. In prod, this would be the executable.
-    pythonProcess = spawn('python', [scriptPath], {
+    pythonProcess = spawn(pythonBin, [scriptPath], {
         cwd: path.join(__dirname, '../backend'),
+        env: {
+            ...process.env,
+            PYTHON_BIN: pythonBin,
+            MPLCONFIGDIR: process.env.MPLCONFIGDIR || path.join(cacheRoot, 'matplotlib'),
+            XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || cacheRoot,
+        },
     });
 
     pythonProcess.stdout.on('data', (data) => {
@@ -82,6 +106,8 @@ function startPythonBackend() {
 }
 
 app.whenReady().then(() => {
+    ensureCacheDirs();
+
     ipcMain.on('window-minimize', () => {
         if (mainWindow) mainWindow.minimize();
     });
@@ -100,9 +126,9 @@ app.whenReady().then(() => {
         if (mainWindow) mainWindow.close();
     });
 
-    checkBackendPort(8000).then((isTaken) => {
+    checkBackendPort(backendPort).then((isTaken) => {
         if (isTaken) {
-            console.log('Port 8000 is taken. Assuming backend is already running manually.');
+            console.log(`Port ${backendPort} is taken. Assuming backend is already running manually.`);
             waitForBackend().then(createWindow);
         } else {
             startPythonBackend();
@@ -141,7 +167,7 @@ function waitForBackend() {
     return new Promise((resolve) => {
         const check = () => {
             const http = require('http');
-            http.get('http://127.0.0.1:8000/status', (res) => {
+            http.get(`http://${backendHost}:${backendPort}/status`, (res) => {
                 if (res.statusCode === 200) {
                     console.log('Backend is ready!');
                     resolve();

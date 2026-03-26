@@ -17,7 +17,14 @@ class MyListener(ServiceListener):
         pass
 
 async def scan():
-    zeroconf = Zeroconf()
+    try:
+        zeroconf = Zeroconf()
+    except PermissionError as e:
+        print("mDNS scan could not start because the network socket could not be opened.")
+        print("On macOS, this usually means the current environment is blocking multicast/bind access.")
+        print(f"Details: {e}")
+        return
+
     listener = MyListener()
     
     print("Scanning for common printer services...")
@@ -30,13 +37,15 @@ async def scan():
         "_printer._tcp.local."
     ]
     
-    browsers = []
-    for s in services:
-        browsers.append(ServiceBrowser(zeroconf, s, listener))
-    
-    print("Listening for 10 seconds...")
-    await asyncio.sleep(10)
-    zeroconf.close()
+    try:
+        browsers = []
+        for s in services:
+            browsers.append(ServiceBrowser(zeroconf, s, listener))
+
+        print("Listening for 10 seconds...")
+        await asyncio.sleep(10)
+    finally:
+        zeroconf.close()
 
 if __name__ == "__main__":
     asyncio.run(scan())

@@ -1,12 +1,12 @@
 {
-  "name": "ada-v2",
+  "name": "edith",
   "version": "1.0.0",
-  "description": "A.D.A V2 - AI Assistant",
+  "description": "Edith - AI Presence",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && npx electron .\"",
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && env -u ELECTRON_RUN_AS_NODE electron .\"",
     "build": "vite build",
-    "start": "npx electron ."
+    "start": "env -u ELECTRON_RUN_AS_NODE electron ."
   },
   "keywords": [],
   "author": "",
@@ -17,6 +17,7 @@
     "@react-three/fiber": "^8.15.16",
     "@types/three": "^0.160.0",
     "clsx": "^2.1.0",
+    "docx": "^9.6.1",
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.300.0",
     "react": "^18.2.0",

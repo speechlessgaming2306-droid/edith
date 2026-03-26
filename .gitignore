@@ -10,11 +10,14 @@ env/
 # ADA Specific Local Data
 backend/reference.jpg
 backend/settings.json
+backend/.settings.local.json
 backend/last_cad_generation.json
 long_term_memory/
 projects/
 output.stl
 cad_outputs/
+.spotify_tokens.json
+.cache/
 
 # Node.js
 node_modules/

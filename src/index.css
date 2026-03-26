@@ -6,8 +6,14 @@
 
 body {
   margin: 0;
-  background-color: #000;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(232, 238, 244, 0.08), transparent 18%),
+    radial-gradient(circle at top, rgba(168, 182, 198, 0.08), transparent 26%),
+    linear-gradient(180deg, #0a0b0d 0%, #07080a 44%, #040506 100%);
+  color: #d4dde5;
   overflow: hidden;
+  font-family: 'Share Tech Mono', monospace;
+  color-scheme: dark;
 }
 
 /* Custom Scrollbar Hide */
@@ -30,4 +36,87 @@ body {
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.hud-panel {
+  position: relative;
+  border: 1px solid rgba(184, 194, 204, 0.12);
+  background: linear-gradient(180deg, rgba(13, 15, 18, 0.82) 0%, rgba(9, 10, 13, 0.9) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(220, 228, 236, 0.02),
+    0 18px 48px rgba(0, 0, 0, 0.24);
+  border-radius: 16px;
+}
+
+.hud-panel::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border: 1px solid rgba(204, 218, 232, 0.025);
+  pointer-events: none;
+  border-radius: 15px;
+}
+
+.hud-glow {
+  box-shadow: 0 0 0 1px rgba(196, 214, 230, 0.03), 0 0 28px rgba(134, 168, 208, 0.08);
+}
+
+.hud-accent-line {
+  background: linear-gradient(90deg, transparent, rgba(212, 226, 240, 0.3), rgba(144, 176, 214, 0.28), transparent);
+}
+
+@keyframes breathePulse {
+  0%, 100% { transform: scale(0.985); opacity: 0.82; }
+  50% { transform: scale(1.02); opacity: 1; }
+}
+
+.visualizer-breathe {
+  animation: breathePulse 3.2s ease-in-out infinite;
+}
+
+@keyframes waterBlob {
+  0%, 100% {
+    border-radius: 42% 58% 55% 45% / 42% 40% 60% 58%;
+    transform: rotate(0deg);
+  }
+  25% {
+    border-radius: 55% 45% 48% 52% / 50% 58% 42% 50%;
+    transform: rotate(4deg);
+  }
+  50% {
+    border-radius: 46% 54% 58% 42% / 56% 44% 52% 48%;
+    transform: rotate(0deg);
+  }
+  75% {
+    border-radius: 58% 42% 46% 54% / 44% 54% 46% 56%;
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes ambientDrift {
+  0%, 100% { opacity: 0.72; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.visualizer-blob {
+  animation: waterBlob 6.4s ease-in-out infinite, breathePulse 3.1s ease-in-out infinite;
+  will-change: transform, border-radius, opacity;
+}
+
+.visualizer-blob-inner {
+  animation: waterBlob 7.8s ease-in-out infinite reverse, breathePulse 2.9s ease-in-out infinite;
+  will-change: transform, border-radius, opacity;
+}
+
+.visualizer-ambient {
+  animation: ambientDrift 4.8s ease-in-out infinite;
+  will-change: transform, opacity;
 }

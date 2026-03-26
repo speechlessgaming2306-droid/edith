@@ -6,6 +6,8 @@ export default defineConfig({
     plugins: [react()],
     base: './', // Important for Electron
     server: {
+        host: 'localhost',
         port: 5173,
+        strictPort: true,
     }
 })

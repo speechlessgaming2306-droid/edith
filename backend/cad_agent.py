@@ -4,11 +4,11 @@ import asyncio
 from datetime import datetime
 from google import genai
 from google.genai import types
-from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from env_loader import load_edith_env
 
-load_dotenv()
+load_edith_env()
 
 class CadAgent:
     def __init__(self, on_thought=None, on_status=None):
@@ -441,4 +441,3 @@ Ensure you still export to 'output.stl'.
             import traceback
             traceback.print_exc()
             return None
-

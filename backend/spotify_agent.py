@@ -12,9 +12,9 @@ from urllib.parse import urlencode, urlparse, parse_qs
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-from dotenv import load_dotenv
+from env_loader import load_edith_env
 
-load_dotenv()
+load_edith_env()
 
 
 class SpotifyAgent:

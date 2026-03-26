@@ -8,17 +8,16 @@ import textwrap
 import tempfile
 from pathlib import Path
 
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from env_loader import load_edith_env
 
 try:
     from playwright.sync_api import sync_playwright
 except Exception:  # pragma: no cover - optional in cloud/server deployments
     sync_playwright = None
 
-
-load_dotenv()
+load_edith_env()
 
 
 class DocumentAgent:

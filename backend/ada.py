@@ -14,7 +14,6 @@ from email.mime.text import MIMEText
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
-from dotenv import load_dotenv
 import argparse
 import difflib
 import math
@@ -25,6 +24,7 @@ import numpy as np
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from websockets.asyncio.client import connect as ws_connect
+from env_loader import load_edith_env
 
 try:
     import cv2
@@ -73,7 +73,7 @@ MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 VISION_MODEL = "gemini-2.5-flash"
 DEFAULT_MODE = "camera"
 
-load_dotenv()
+load_edith_env()
 client = genai.Client(http_options={"api_version": "v1alpha"}, api_key=os.getenv("GEMINI_API_KEY"))
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 ACCESS_CODE = os.getenv("HARVEY_ACCESS_CODE", "2306")

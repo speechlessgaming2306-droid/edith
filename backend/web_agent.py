@@ -7,9 +7,9 @@ import subprocess
 import sys
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 from urllib.request import Request, urlopen
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from env_loader import load_edith_env
 
 try:
     from playwright.async_api import async_playwright
@@ -17,7 +17,7 @@ except Exception:  # pragma: no cover - optional in cloud/server deployments
     async_playwright = None
 
 # 1. Load API Key
-load_dotenv()
+load_edith_env()
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:

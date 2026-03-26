@@ -36,6 +36,7 @@ RUN pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt
 
 COPY backend ./backend
+COPY .env.railway ./.env.railway
 COPY public ./public
 COPY tests ./tests
 COPY *.py ./

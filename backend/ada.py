@@ -664,44 +664,35 @@ switch_device_tool = {
 
 tools = [{'google_search': {}}, {"function_declarations": [run_web_agent, create_project_tool, switch_project_tool, list_projects_tool, spotify_playback_tool, spotify_status_tool, spotify_dj_tool, reply_to_latest_communication_tool, browser_list_tabs_tool, browser_navigate_tool, browser_click_tool, browser_fill_tool, browser_keypress_tool, browser_screenshot_tool, browser_dom_tool, recall_memory_tool, current_time_tool, list_devices_tool, switch_device_tool] + tools_list[0]['function_declarations']}]
 
-def _build_live_config(*, text_only: bool):
-    kwargs = {
-        "response_modalities": ["TEXT"] if text_only else ["AUDIO"],
-        "max_output_tokens": 2048,
-        "temperature": 0.4,
-        "enable_affective_dialog": False,
-        "thinking_config": types.ThinkingConfig(
-            thinking_budget=512,
-            include_thoughts=False,
-        ),
-        "realtime_input_config": types.RealtimeInputConfig(
-            automatic_activity_detection=types.AutomaticActivityDetection(
-                disabled=False,
-                start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
-                end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
-                prefix_padding_ms=20,
-                silence_duration_ms=90,
-            )
-        ),
-        "system_instruction": EDITH_SYSTEM_PROMPT,
-        "tools": tools,
-    }
-    if text_only:
-        return types.LiveConnectConfig(**kwargs)
-
-    kwargs["output_audio_transcription"] = {}
-    kwargs["speech_config"] = types.SpeechConfig(
+config = types.LiveConnectConfig(
+    response_modalities=["AUDIO"],
+    output_audio_transcription={},
+    max_output_tokens=2048,
+    temperature=0.4,
+    enable_affective_dialog=False,
+    thinking_config=types.ThinkingConfig(
+        thinking_budget=512,
+        include_thoughts=False,
+    ),
+    realtime_input_config=types.RealtimeInputConfig(
+        automatic_activity_detection=types.AutomaticActivityDetection(
+            disabled=False,
+            start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
+            end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
+            prefix_padding_ms=20,
+            silence_duration_ms=90,
+        )
+    ),
+    system_instruction=EDITH_SYSTEM_PROMPT,
+    tools=tools,
+    speech_config=types.SpeechConfig(
         voice_config=types.VoiceConfig(
             prebuilt_voice_config=types.PrebuiltVoiceConfig(
                 voice_name="Kore"
             )
         )
     )
-    return types.LiveConnectConfig(**kwargs)
-
-
-AUDIO_CONFIG = _build_live_config(text_only=False)
-TEXT_CONFIG = _build_live_config(text_only=True)
+)
 
 if pyaudio:
     pya = pyaudio.PyAudio()
@@ -3143,11 +3134,6 @@ class AudioLoop:
                             transcript = response.server_content.output_transcription.text
                             if transcript:
                                 self._stream_model_text(transcript)
-
-                        if not self.enable_audio_output:
-                            model_text = getattr(response, "text", None)
-                            if model_text:
-                                self._stream_model_text(model_text)
                         
                         # Flush buffer on turn completion if needed, 
                         # but usually better to wait for sender switch or explicit end.
@@ -3881,9 +3867,8 @@ class AudioLoop:
         while not self.stop_event.is_set():
             try:
                 print(f"[ADA DEBUG] [CONNECT] Connecting to Gemini Live API...")
-                live_config = AUDIO_CONFIG if (self.enable_audio_output or self.capture_mic) else TEXT_CONFIG
                 async with (
-                    client.aio.live.connect(model=MODEL, config=live_config) as session,
+                    client.aio.live.connect(model=MODEL, config=config) as session,
                     asyncio.TaskGroup() as tg,
                 ):
                     self.reset_transient_state()
